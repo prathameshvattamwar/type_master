@@ -264,18 +264,24 @@ document.addEventListener("DOMContentLoaded", () => {
           button.className = "lesson-button";
           button.dataset.lessonId = lesson.id;
           button.dataset.levelId = level.id;
+
           const lessonProgress = userData.completedLessons[lesson.id];
-          let statsHTML = "";
-          if (lessonProgress) {
-            statsHTML = `<span class="lesson-stats">Best: ${
-              lessonProgress.wpm
-            } WPM | ${
-              lessonProgress.accuracy
-            }% Acc<span class="stars">${"★".repeat(
-              lessonProgress.stars
-            )}${"☆".repeat(3 - lessonProgress.stars)}</span></span>`;
+          let statsHTML = "No attempts yet.";
+          if (
+            lessonProgress &&
+            typeof lessonProgress.wpm === "number" &&
+            typeof lessonProgress.accuracy === "number"
+          ) {
+            const starsDisplay =
+              "★".repeat(lessonProgress.stars || 0) +
+              "☆".repeat(3 - (lessonProgress.stars || 0));
+            statsHTML = `Best: ${lessonProgress.wpm} WPM | ${lessonProgress.accuracy}% Acc<span class="stars">${starsDisplay}</span>`;
           }
-          button.innerHTML = `<span class="lesson-name">${lesson.name}</span> ${statsHTML}`;
+
+          button.innerHTML = `
+                        <span class="lesson-name">${lesson.name}</span>
+                        <span class="lesson-stats">${statsHTML}</span>
+                    `;
           levelDiv.appendChild(button);
         });
       } else {
@@ -399,9 +405,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateDashboardStats() {
     let totalWpm = 0;
     let totalAccuracy = 0;
-    let count = 0;
+    let lessonCount = 0;
+    let validLessonCount = 0;
+
     for (const lessonId in userData.completedLessons) {
       const progress = userData.completedLessons[lessonId];
+      lessonCount++;
       if (
         progress &&
         typeof progress.wpm === "number" &&
@@ -409,11 +418,17 @@ document.addEventListener("DOMContentLoaded", () => {
       ) {
         totalWpm += progress.wpm;
         totalAccuracy += progress.accuracy;
-        count++;
+        validLessonCount++;
       }
     }
-    const avgWpm = count > 0 ? Math.round(totalWpm / count) : "--";
-    const avgAcc = count > 0 ? Math.round(totalAccuracy / count) : "--";
+
+    const avgWpm =
+      validLessonCount > 0 ? Math.round(totalWpm / validLessonCount) : "--";
+    const avgAcc =
+      validLessonCount > 0
+        ? Math.round(totalAccuracy / validLessonCount)
+        : "--";
+
     avgSpeedStat.textContent = avgWpm;
     avgAccuracyStat.textContent = avgAcc;
     totalTimeStat.textContent = formatTime(userData.totalTimeSeconds);
@@ -466,22 +481,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleModalStart() {
     if (!lessonToStart) return;
-    const timeLimitMinutes = parseInt(modalTimeInput.value, 10);
-    if (!isNaN(timeLimitMinutes) && timeLimitMinutes >= 0) {
-      if (!userData.completedLessons[lessonToStart.id])
-        userData.completedLessons[lessonToStart.id] = {};
+    let timeLimitMinutes = parseInt(modalTimeInput.value, 10);
+    if (isNaN(timeLimitMinutes) || timeLimitMinutes < 0) {
+      timeLimitMinutes = 0; // Default to no limit if invalid
+    }
+
+    // Ensure the lesson entry exists
+    if (!userData.completedLessons[lessonToStart.id]) {
+      userData.completedLessons[lessonToStart.id] = {
+        wpm: 0,
+        accuracy: 0,
+        stars: 0,
+        lastTimeLimit: timeLimitMinutes,
+      };
+    } else {
       userData.completedLessons[lessonToStart.id].lastTimeLimit =
         timeLimitMinutes;
-      currentLesson = lessonToStart;
-      closeTimeModal();
-      startTypingSession(
-        currentLesson,
-        timeLimitMinutes > 0 ? timeLimitMinutes * 60 : null
-      );
-    } else {
-      alert("Please enter a valid number of minutes (0 or more).");
-      modalTimeInput.focus();
     }
+
+    currentLesson = lessonToStart;
+    closeTimeModal();
+    startTypingSession(
+      currentLesson,
+      timeLimitMinutes > 0 ? timeLimitMinutes * 60 : null
+    );
   }
 
   function resetTypingState() {
@@ -554,7 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const spans = paragraphDisplay.children;
     const currentPos = typedValue.length;
 
-    typingState.totalTypedChars = currentPos; // Base total on input length
+    typingState.totalTypedChars = currentPos;
     let correctCount = 0;
     let incorrectCount = 0;
 
@@ -563,16 +586,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!span) continue;
       const targetChar = targetText[i];
 
-      // Always reset classes first
       span.classList.remove(
         "char-correct",
         "char-incorrect",
         "char-current",
         "char-todo"
       );
-      span.style.backgroundColor = ""; // Reset background as well
+      span.style.backgroundColor = "";
 
-      // Ensure original character is displayed unless it's an incorrect space
       if (
         span.textContent !== targetChar &&
         !(span.classList.contains("char-incorrect") && targetChar === " ")
@@ -581,7 +602,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       if (i < currentPos) {
-        // Characters already typed
         const typedChar = typedValue[i];
         if (typedChar === targetChar) {
           span.classList.add("char-correct");
@@ -590,41 +610,34 @@ document.addEventListener("DOMContentLoaded", () => {
           span.classList.add("char-incorrect");
           incorrectCount++;
           if (targetChar === " ") {
-            span.textContent = "_"; // Use placeholder for incorrect space
-            span.style.backgroundColor = "#ffdddd"; // Keep visible background
+            span.textContent = "_";
+            span.style.backgroundColor = "#ffdddd";
           }
         }
       } else if (i === currentPos) {
-        // The current character to be typed
         span.classList.add("char-current");
-        // Make sure the placeholder isn't shown for the current char
         if (span.textContent === "_") {
           span.textContent = targetChar;
         }
       } else {
-        // Characters not yet typed
         span.classList.add("char-todo");
-        // Make sure the placeholder isn't shown for upcoming chars
         if (span.textContent === "_") {
           span.textContent = targetChar;
         }
       }
     }
 
-    // Update correct/incorrect counts based *only* on typed characters
     typingState.correctChars = correctCount;
     typingState.incorrectChars = incorrectCount;
 
-    // Highlight next key on keyboard
     if (currentPos < targetText.length) {
       highlightKeyOnKeyboard(targetText[currentPos]);
     } else {
-      clearAllKeyHighlights(false); // Clear highlight if at the end
+      clearAllKeyHighlights(false);
     }
 
     updateLiveStats();
 
-    // Check for completion ONLY if at the end AND no errors in the typed portion
     if (currentPos === targetText.length && incorrectCount === 0) {
       clearAllKeyHighlights();
       finishLesson("completed");
@@ -632,7 +645,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateLiveStats() {
-    if (typingState.isFinished) return; // Don't update stats after finishing
+    if (typingState.isFinished) return;
 
     const currentTime = Date.now();
     let currentElapsedSeconds = typingState.elapsedSeconds;
@@ -642,7 +655,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const minutes = currentElapsedSeconds / 60;
     let wpm = 0;
-    // Use correctChars counted in handleTypingInput
     if (minutes > 0.01) {
       wpm = Math.round(
         typingState.correctChars / WPM_STANDARD_WORD_LENGTH / minutes
@@ -650,7 +662,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let accuracy = 100;
-    // Accuracy based on total *typed* chars so far
     if (typingState.totalTypedChars > 0) {
       accuracy = Math.round(
         (typingState.correctChars / typingState.totalTypedChars) * 100
@@ -660,6 +671,16 @@ document.addEventListener("DOMContentLoaded", () => {
     wpmDisplay.textContent = Math.max(0, wpm);
     accDisplay.textContent = `${Math.max(0, Math.min(100, accuracy))}%`;
     errDisplay.textContent = typingState.incorrectChars;
+
+    if (typingState.timeLimit && typingState.timerRunning) {
+      const remainingTime = Math.max(
+        0,
+        typingState.timeLimit - currentElapsedSeconds
+      );
+      timerDisplay.textContent = formatTime(remainingTime);
+    } else if (!typingState.timeLimit && typingState.timerRunning) {
+      timerDisplay.textContent = formatTime(currentElapsedSeconds);
+    }
   }
 
   function startTimer() {
@@ -668,20 +689,26 @@ document.addEventListener("DOMContentLoaded", () => {
     typingState.timerRunning = true;
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
-      if (!typingState.timerRunning) return;
+      if (!typingState.timerRunning || typingState.isFinished) {
+        clearInterval(timerInterval);
+        return;
+      }
       const now = Date.now();
       const currentElapsed =
         typingState.elapsedSeconds + (now - typingState.startTime) / 1000;
-      if (typingState.timeLimit && currentElapsed >= typingState.timeLimit) {
-        timerDisplay.textContent = formatTime(typingState.timeLimit);
-        finishLesson("timeup");
+
+      if (typingState.timeLimit) {
+        const remainingTime = typingState.timeLimit - currentElapsed;
+        if (remainingTime <= 0) {
+          timerDisplay.textContent = formatTime(0);
+          finishLesson("timeup");
+        } else {
+          timerDisplay.textContent = formatTime(remainingTime);
+        }
       } else {
-        const displayTime = typingState.timeLimit
-          ? typingState.timeLimit - currentElapsed
-          : currentElapsed;
-        timerDisplay.textContent = formatTime(Math.max(0, displayTime));
+        timerDisplay.textContent = formatTime(currentElapsed);
       }
-    }, 500);
+    }, 250);
   }
   function pauseTimer() {
     if (!typingState.timerRunning || typingState.isFinished) return;
@@ -697,12 +724,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (
       typingState.timerRunning ||
       typingState.isFinished ||
-      !typingState.startTime === null
+      typingState.startTime !== null
     )
-      return; // Resume only if paused and not finished
-    typingState.startTime = Date.now(); // Set new start time for this interval
+      return;
+    typingState.startTime = Date.now();
     typingState.timerRunning = true;
-    startTimer(); // Restart the interval logic
+    startTimer();
     resetInactivityTimer();
   }
   function stopTimer() {
@@ -738,7 +765,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let finalErrorCount = 0;
     let finalTypedLength = finalTypedValue.length;
 
-    // Recalculate final correct/errors based on the actual typed input vs target
     for (let i = 0; i < finalTypedLength; i++) {
       if (i < targetText.length && finalTypedValue[i] === targetText[i]) {
         finalCorrectCount++;
@@ -760,16 +786,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (finalTypedLength > 0) {
       finalAccuracy = Math.round((finalCorrectCount / finalTypedLength) * 100);
       finalAccuracy = Math.max(0, Math.min(100, finalAccuracy));
-    } else if (reason !== "quit") {
-      // Avoid 100% accuracy if nothing was typed unless quit
+    } else if (reason !== "quit" && finalElapsedTime > 1) {
       finalAccuracy = 0;
+    } else if (reason !== "quit") {
+      finalAccuracy = 100;
     }
 
-    // Determine if lesson considered completed for achievements/progress
-    // Completion generally requires reaching the end or time up with decent accuracy
     const consideredComplete =
       reason === "completed" ||
-      (reason === "timeup" && finalAccuracy >= 70 && finalElapsedTime > 5); // Example threshold
+      (reason === "timeup" && finalAccuracy >= 70 && finalElapsedTime > 5);
 
     const result = {
       wpm: finalWpm,
@@ -787,6 +812,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const newlyUnlocked = checkAchievements(result);
     displayAchievementNotification(newlyUnlocked);
     saveUserData();
+
+    updateDashboardStats();
+    renderLessons();
   }
 
   function calculateStars(wpm, accuracy, reason) {
@@ -916,6 +944,7 @@ document.addEventListener("DOMContentLoaded", () => {
       settingsResetMessage.classList.add("hidden");
     }, 3000);
   }
+
   function loadUserData() {
     const data = localStorage.getItem("typingUserData");
     const defaultData = {
@@ -930,13 +959,17 @@ document.addEventListener("DOMContentLoaded", () => {
       totalTimeSeconds: 0,
     };
     try {
-      const parsedData = data ? JSON.parse(data) : defaultData;
-      if (parsedData.lastPlayedDate !== new Date().toDateString()) {
-        parsedData.todayTypedSeconds = 0;
-        parsedData.lastPlayedDate = new Date().toDateString();
-      }
-      parsedData.dailyGoalMinutes = Number(parsedData.dailyGoalMinutes) || 15;
-      parsedData.todayTypedSeconds = Number(parsedData.todayTypedSeconds) || 0;
+      let parsedData = data ? JSON.parse(data) : { ...defaultData };
+
+      // Ensure defaults for potentially missing top-level keys
+      parsedData.userName = parsedData.userName || defaultData.userName;
+      parsedData.dailyGoalMinutes =
+        Number(parsedData.dailyGoalMinutes) || defaultData.dailyGoalMinutes;
+      parsedData.todayTypedSeconds =
+        Number(parsedData.todayTypedSeconds) || defaultData.todayTypedSeconds;
+      parsedData.theme = parsedData.theme || defaultData.theme;
+      parsedData.lastPlayedDate =
+        parsedData.lastPlayedDate || defaultData.lastPlayedDate;
       parsedData.completedLessons = parsedData.completedLessons || {};
       parsedData.unlockedAchievements = Array.isArray(
         parsedData.unlockedAchievements
@@ -945,7 +978,22 @@ document.addEventListener("DOMContentLoaded", () => {
         : [];
       parsedData.totalStars = Number(parsedData.totalStars) || 0;
       parsedData.totalTimeSeconds = Number(parsedData.totalTimeSeconds) || 0;
-      parsedData.theme = parsedData.theme || "theme-default";
+
+      if (parsedData.lastPlayedDate !== new Date().toDateString()) {
+        parsedData.todayTypedSeconds = 0;
+        parsedData.lastPlayedDate = new Date().toDateString();
+      }
+
+      // Ensure nested completedLessons have valid numbers
+      for (const lessonId in parsedData.completedLessons) {
+        const lesson = parsedData.completedLessons[lessonId];
+        lesson.wpm = Number(lesson.wpm) || 0;
+        lesson.accuracy = Number(lesson.accuracy) || 0;
+        lesson.stars = Number(lesson.stars) || 0;
+        lesson.lastTimeLimit =
+          Number(lesson.lastTimeLimit) >= 0 ? Number(lesson.lastTimeLimit) : 5; // Default 5 mins if invalid
+      }
+
       return parsedData;
     } catch (e) {
       console.error(
@@ -953,19 +1001,10 @@ document.addEventListener("DOMContentLoaded", () => {
         e
       );
       localStorage.removeItem("typingUserData");
-      return {
-        userName: "Player1",
-        dailyGoalMinutes: 15,
-        todayTypedSeconds: 0,
-        theme: "theme-default",
-        lastPlayedDate: new Date().toDateString(),
-        completedLessons: {},
-        unlockedAchievements: [],
-        totalStars: 0,
-        totalTimeSeconds: 0,
-      };
+      return { ...defaultData };
     }
   }
+
   function saveUserData() {
     try {
       localStorage.setItem("typingUserData", JSON.stringify(userData));
@@ -974,49 +1013,63 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Warning: Could not save progress.");
     }
   }
+
   function updateUserData(result) {
     if (!result || !result.lessonId) return;
-    if (result.timeSeconds > 2) {
-      userData.totalTimeSeconds += result.timeSeconds;
-      userData.todayTypedSeconds += result.timeSeconds;
+
+    if (result.timeSeconds > 1) {
+      userData.totalTimeSeconds =
+        (userData.totalTimeSeconds || 0) + result.timeSeconds;
+      userData.todayTypedSeconds =
+        (userData.todayTypedSeconds || 0) + result.timeSeconds;
       userData.lastPlayedDate = new Date().toDateString();
     }
+
     const lessonId = result.lessonId;
     const currentBest = userData.completedLessons[lessonId];
     let isNewBest = false;
     let starsGained = 0;
-    const lastTime = result.timeLimit ?? currentBest?.lastTimeLimit ?? 5;
+    const newResultWpm = Number(result.wpm) || 0;
+    const newResultAccuracy = Number(result.accuracy) || 0;
+    const newResultStars = Number(result.stars) || 0;
+    const lastTimeLimit =
+      Number(result.timeLimit) >= 0
+        ? Number(result.timeLimit)
+        : currentBest?.lastTimeLimit ?? 5;
+
     if (
       !currentBest ||
-      result.wpm > currentBest.wpm ||
-      (result.wpm === currentBest.wpm && result.accuracy > currentBest.accuracy)
+      newResultWpm > (currentBest.wpm || 0) ||
+      (newResultWpm === (currentBest.wpm || 0) &&
+        newResultAccuracy > (currentBest.accuracy || 0))
     ) {
-      const oldStars = currentBest ? currentBest.stars : 0;
-      starsGained = result.stars - oldStars;
+      const oldStars = currentBest ? currentBest.stars || 0 : 0;
+      starsGained = newResultStars - oldStars;
       userData.completedLessons[lessonId] = {
-        wpm: result.wpm,
-        accuracy: result.accuracy,
-        stars: result.stars,
-        lastTimeLimit: lastTime,
+        wpm: newResultWpm,
+        accuracy: newResultAccuracy,
+        stars: newResultStars,
+        lastTimeLimit: lastTimeLimit,
       };
       isNewBest = true;
-    } else if (!currentBest && result.stars >= 0) {
-      starsGained = result.stars;
-      userData.completedLessons[lessonId] = {
-        wpm: result.wpm,
-        accuracy: result.accuracy,
-        stars: result.stars,
-        lastTimeLimit: lastTime,
-      };
-      isNewBest = true;
-    } else if (currentBest) {
-      currentBest.lastTimeLimit = lastTime;
+    } else {
+      // Update lastTimeLimit even if not a new best score
+      userData.completedLessons[lessonId].lastTimeLimit = lastTimeLimit;
+      // Update stars if current attempt is better than saved, but not overall best WPM/Acc
+      const oldStars = currentBest.stars || 0;
+      if (newResultStars > oldStars) {
+        starsGained = newResultStars - oldStars;
+        userData.completedLessons[lessonId].stars = newResultStars;
+        isNewBest = true; // Consider star increase a reason to update total
+      }
     }
+
     if (isNewBest) {
-      userData.totalStars += starsGained;
+      userData.totalStars = (userData.totalStars || 0) + starsGained;
       userData.totalStars = Math.max(0, userData.totalStars);
     }
   }
+
   function checkAchievements(latestResult) {
     if (!achievementsData || !latestResult) return [];
     const newlyUnlocked = [];
@@ -1065,7 +1118,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function handleKeyDown(event) {
     if (document.activeElement === typingInput) {
-      // Only prevent default for Tab, which interferes with input focus
       if (event.key === "Tab") {
         event.preventDefault();
       }
