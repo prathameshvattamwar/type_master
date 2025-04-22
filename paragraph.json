@@ -1,0 +1,62 @@
+{
+    "levels": [
+      {
+        "id": "beginner",
+        "name": "Beginner",
+        "lessons": [
+          {
+            "id": "beg-home",
+            "name": "Home Row Basics",
+            "text": "ask sad fall jad; lass jak salad flask; sad lad ask fall;"
+          },
+          {
+            "id": "beg-er",
+            "name": "E and R Keys",
+            "text": "red sea fed read dear rare; ear ask sad red; fear lard read;"
+          },
+          {
+            "id": "beg-top1",
+            "name": "T and Y Keys",
+            "text": "try sat yet rate tear; rest fast tart state; year stay tray;"
+          }
+        ]
+      },
+      {
+        "id": "intermediate",
+        "name": "Intermediate",
+        "lessons": [
+          {
+            "id": "int-top-words",
+            "name": "Easy Top Row Words",
+            "text": "type true quote quiet your tear pepper worry; power route error type;"
+          },
+          {
+            "id": "int-common",
+            "name": "Common English Words",
+            "text": "the quick brown fox jumps over the lazy dog near the bank of the river; people always look for good food;"
+          },
+          {
+             "id": "int-zxc",
+             "name": "Z, X, C Keys",
+             "text": "zoo zebra zap craze zero; exact toxic excel complex; civic cycle cello voice;"
+          }
+        ]
+      },
+      {
+        "id": "advanced",
+        "name": "Advanced",
+        "lessons": [
+          {
+            "id": "adv-symbols",
+            "name": "Numbers & Symbols",
+            "text": "Call (123) 456-7890 for $99.50/deal! Check email@example.com? Yes!"
+          },
+          {
+            "id": "adv-long",
+            "name": "Long Paragraph",
+            "text": "Programming is the process of creating a set of instructions that tell a computer how to perform a task. It often involves problem-solving and logic. Learning to code requires patience and practice, but it opens up many creative possibilities and career opportunities in technology and beyond. Debugging is a crucial part of the process."
+          }
+        ]
+      }
+    ]
+  }

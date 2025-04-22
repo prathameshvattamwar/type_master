@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TypeMaster Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-default">
+    <div class="app-wrapper">
+        <nav class="side-panel">
+            <div class="logo">TypeMaster</div>
+            <ul>
+                <li><a href="#" class="nav-link active" data-view="home">📊<span> Dashboard</span></a></li>
+                <li><a href="#" class="nav-link" data-view="achievements">🏆<span> Achievements (<span id="achievements-count-nav">0</span>)</span></a></li>
+                <li><a href="#" class="nav-link" data-view="settings">⚙️<span> Settings</span></a></li>
+            </ul>
+            <div class="nav-footer">
+                <p>© 2025 TypeMaster</p>
+            </div>
+        </nav>
+
+        <main class="main-content">
+
+            <div id="view-home" class="view">
+                 <h2>Dashboard</h2>
+                <div class="stats-overview">
+                    <div class="stat-card card">
+                        <h3>Avg. Speed</h3>
+                        <p><span id="avg-speed-stat">--</span> WPM</p>
+                    </div>
+                    <div class="stat-card card">
+                        <h3>Avg. Accuracy</h3>
+                        <p><span id="avg-accuracy-stat">--</span> %</p>
+                    </div>
+                    <div class="stat-card card">
+                        <h3>Total Time</h3>
+                        <p><span id="total-time-stat">0:00</span></p>
+                    </div>
+                     <div class="stat-card card">
+                        <h3>Total Stars</h3>
+                        <p>⭐ <span id="total-stars-stat">0</span></p>
+                    </div>
+                </div>
+                <div class="daily-goal-summary card">
+                    <div class="goal-info">
+                        <h3>Daily Goal</h3>
+                        <p><span class="today-typed-display">0:00</span> / <span class="daily-goal-display">15:00</span></p>
+                    </div>
+                    <progress class="daily-progress" value="0" max="900"></progress>
+                </div>
+                <div id="lesson-list-container">
+                    <h2>Lessons</h2>
+                    <div id="lesson-list">
+                        <p class="loading-message">Loading lessons...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-typing" class="view">
+                 <h2 id="typing-lesson-name">Lesson Name</h2>
+                <div class="stats-bar card">
+                    <span>Time: <strong id="timer">0:00</strong></span>
+                    <span>WPM: <strong id="wpm-current">0</strong></span>
+                    <span>Acc: <strong id="accuracy-current">100%</strong></span>
+                    <span>Errors: <strong id="errors-current">0</strong></span>
+                    <span>Goal: <strong id="time-goal-display">N/A</strong></span>
+                </div>
+                <div id="paragraph-display" class="paragraph-container card"></div>
+                <div class="input-area">
+                     <input type="text" id="typing-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                </div>
+                <div id="keyboard"></div>
+                <button id="quit-lesson-btn" class="danger-btn">Quit Lesson</button>
+            </div>
+
+            <div id="view-results" class="view">
+                 <h2 id="results-title">Lesson Complete!</h2>
+                <div class="results-summary card">
+                    <div id="stars-container">★★★</div>
+                    <p>Speed: <strong id="results-wpm">0</strong> WPM</p>
+                    <p>Accuracy: <strong id="results-accuracy">0%</strong></p>
+                    <p>Errors: <strong id="results-errors">0</strong></p>
+                    <p>Time: <strong id="results-time">0:00</strong></p>
+                </div>
+                 <div id="achievement-unlocked" class="achievement-popup card hidden">
+                     <h3>✨ Achievement Unlocked! ✨</h3>
+                     <p><span id="unlocked-badge-icon"></span> <strong id="unlocked-badge-name"></strong></p>
+                     <p id="unlocked-badge-desc"></p>
+                 </div>
+                 <div class="result-actions">
+                    <button id="retry-btn" class="secondary-btn">Retry Lesson</button>
+                    <button id="next-lesson-btn" class="hidden">Next Lesson</button>
+                    <button id="back-to-home-btn" class="secondary-btn">Back to Dashboard</button>
+                </div>
+            </div>
+
+            <div id="view-achievements" class="view">
+                 <h2>Achievements</h2>
+                 <div id="achievements-list" class="card achievements-grid"> <!-- Added class -->
+                     <p class="loading-message">Loading achievements...</p>
+                 </div>
+            </div>
+
+            <div id="view-settings" class="view">
+                <h2>Settings</h2>
+                <div class="settings-section card">
+                    <h3>Daily Goal</h3>
+                    <label for="daily-goal-input">Set your daily practice goal (minutes):</label>
+                    <div class="setting-input-group">
+                        <input type="number" id="daily-goal-input" min="1" max="300" value="15">
+                        <button id="save-goal-btn">Save Goal</button>
+                    </div>
+                    <p id="settings-goal-saved-message" class="saved-message hidden">Goal saved!</p>
+                </div>
+                 <div class="settings-section card">
+                    <h3>Appearance</h3>
+                    <label>Select Theme:</label>
+                    <div class="theme-options">
+                        <label><input type="radio" name="theme" value="theme-default" checked> Default</label>
+                        <label><input type="radio" name="theme" value="theme-dark"> Dark</label>
+                        <label><input type="radio" name="theme" value="theme-ocean"> Ocean</label>
+                    </div>
+                </div>
+                <div class="settings-section card danger-zone">
+                    <h3>Danger Zone</h3>
+                    <div class="reset-option">
+                        <p>Clear all your saved lesson progress, best scores, stars, and total time.</p>
+                        <button id="reset-stats-btn" class="danger-btn small-btn">Reset Statistics</button>
+                    </div>
+                     <div class="reset-option">
+                        <p>Reset all unlocked achievements.</p>
+                        <button id="reset-achievements-btn" class="danger-btn small-btn">Reset Achievements</button>
+                    </div>
+                     <p id="settings-reset-message" class="saved-message hidden"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="time-modal" class="modal-overlay hidden">
+        <div class="modal-content card">
+            <h3 id="modal-lesson-name">Lesson Name</h3>
+            <p>How long do you want to practice?</p>
+            <label for="modal-time-input">Minutes (0 for no limit):</label>
+            <input type="number" id="modal-time-input" value="5" min="0" max="60">
+            <div class="modal-actions">
+                <button id="modal-cancel-btn" class="secondary-btn">Cancel</button>
+                <button id="modal-start-btn">Start Typing</button>
+            </div>
+        </div>
+    </div>
+    <script defer src="script.js"></script>
+</body>
+</html>

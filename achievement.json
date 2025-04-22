@@ -1,0 +1,65 @@
+[
+    {
+      "id": "badge-beg-home",
+      "name": "Home Row Hero",
+      "description": "Complete the 'Home Row Basics' lesson.",
+      "icon": "🏆",
+      "criteria": { "type": "complete_lesson", "lessonId": "beg-home" }
+    },
+    {
+      "id": "badge-int-common",
+      "name": "Common Words Wizard",
+      "description": "Complete 'Common English Words' lesson.",
+      "icon": "🧙",
+      "criteria": { "type": "complete_lesson", "lessonId": "int-common" }
+    },
+    {
+      "id": "stars-10",
+      "name": "Star Collector (10)",
+      "description": "Earn 10 stars total.",
+      "icon": "🌟",
+      "criteria": { "type": "collect_stars", "count": 10 }
+    },
+     {
+      "id": "stars-30",
+      "name": "Star Collector (30)",
+      "description": "Earn 30 stars total.",
+      "icon": "🌟🌟",
+      "criteria": { "type": "collect_stars", "count": 30 }
+    },
+    {
+      "id": "wpm-40",
+      "name": "Speedster (40 WPM)",
+      "description": "Achieve 40 WPM on any lesson.",
+      "icon": "💨",
+      "criteria": { "type": "reach_wpm", "wpm": 40 }
+    },
+     {
+      "id": "wpm-60",
+      "name": "Velocity Master (60 WPM)",
+      "description": "Achieve 60 WPM on any lesson.",
+      "icon": "🚀",
+      "criteria": { "type": "reach_wpm", "wpm": 60 }
+    },
+    {
+      "id": "accuracy-95",
+      "name": "Accurate Typist (95%)",
+      "description": "Achieve 95% accuracy on any lesson.",
+      "icon": "🎯",
+      "criteria": { "type": "reach_accuracy", "accuracy": 95 }
+    },
+    {
+      "id": "accuracy-99",
+      "name": "Near Perfect (99%)",
+      "description": "Achieve 99% accuracy on any lesson.",
+      "icon": "💯",
+      "criteria": { "type": "reach_accuracy", "accuracy": 99 }
+    },
+     {
+      "id": "time-30m",
+      "name": "Dedicated Practice (30 Min)",
+      "description": "Spend 30 minutes typing in total.",
+      "icon": "🕒",
+      "criteria": { "type": "total_time", "minutes": 30 }
+    }
+  ]
