@@ -128,7 +128,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     lessonListContainer.addEventListener("click", handleLessonSelect);
     typingInput.addEventListener("input", handleTypingInput);
-    typingInput.addEventListener("focus", () => resetInactivityTimer());
+    typingInput.addEventListener("focus", () => {
+      resetInactivityTimer();
+      resumeTimer();
+    });
     typingInput.addEventListener("blur", pauseTimer);
     typingInput.addEventListener("paste", (e) => e.preventDefault());
     document.addEventListener("keydown", handleKeyDown);
@@ -187,8 +190,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentActiveViewElement && !immediate) {
       currentActiveViewElement.classList.add("exiting");
       setTimeout(() => {
-        currentActiveViewElement.classList.remove("active-view", "exiting");
-        nextViewElement.classList.add("active-view");
+        if (currentActiveViewElement) {
+          currentActiveViewElement.classList.remove("active-view", "exiting");
+        }
+        if (nextViewElement) {
+          nextViewElement.classList.add("active-view");
+        }
         activeView = viewName;
         refreshViewContent(viewName);
         mainContent.scrollTop = 0;
@@ -196,7 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       if (currentActiveViewElement)
         currentActiveViewElement.classList.remove("active-view");
-      nextViewElement.classList.add("active-view");
+      if (nextViewElement) nextViewElement.classList.add("active-view");
       activeView = viewName;
       refreshViewContent(viewName);
       mainContent.scrollTop = 0;
@@ -215,6 +222,9 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
       case "settings":
         populateSettings();
+        break;
+      case "typing":
+        if (typingInput) typingInput.focus();
         break;
     }
   }
@@ -531,84 +541,124 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleTypingInput() {
     if (typingState.isFinished || !currentLesson) return;
+
     const currentTime = Date.now();
-    if (!typingState.timerRunning && typingState.lessonText.length > 0)
+    if (!typingState.timerRunning && typingState.lessonText.length > 0) {
       startTimer();
+    }
     resetInactivityTimer();
     typingState.lastInputTimestamp = currentTime;
+
     const typedValue = typingInput.value;
     const targetText = typingState.lessonText;
     const spans = paragraphDisplay.children;
-    const currentCursorPos = typedValue.length;
-    typingState.totalTypedChars = currentCursorPos;
-    let currentCorrect = 0;
-    let currentIncorrect = 0;
+    const currentPos = typedValue.length;
+
+    typingState.totalTypedChars = currentPos; // Base total on input length
+    let correctCount = 0;
+    let incorrectCount = 0;
 
     for (let i = 0; i < targetText.length; i++) {
       const span = spans[i];
       if (!span) continue;
       const targetChar = targetText[i];
-      const typedChar = typedValue[i];
 
+      // Always reset classes first
       span.classList.remove(
-        "char-current",
         "char-correct",
         "char-incorrect",
+        "char-current",
         "char-todo"
       );
-      if (span.textContent !== targetChar && targetChar !== " ")
-        span.textContent = targetChar;
-      span.style.backgroundColor = "";
+      span.style.backgroundColor = ""; // Reset background as well
 
-      if (i < currentCursorPos) {
+      // Ensure original character is displayed unless it's an incorrect space
+      if (
+        span.textContent !== targetChar &&
+        !(span.classList.contains("char-incorrect") && targetChar === " ")
+      ) {
+        span.textContent = targetChar;
+      }
+
+      if (i < currentPos) {
+        // Characters already typed
+        const typedChar = typedValue[i];
         if (typedChar === targetChar) {
           span.classList.add("char-correct");
-          currentCorrect++;
+          correctCount++;
         } else {
           span.classList.add("char-incorrect");
-          currentIncorrect++;
+          incorrectCount++;
           if (targetChar === " ") {
-            span.textContent = "_";
-            span.style.backgroundColor = "#ffdddd";
+            span.textContent = "_"; // Use placeholder for incorrect space
+            span.style.backgroundColor = "#ffdddd"; // Keep visible background
           }
         }
-      } else if (i === currentCursorPos) {
+      } else if (i === currentPos) {
+        // The current character to be typed
         span.classList.add("char-current");
-        highlightKeyOnKeyboard(targetChar);
+        // Make sure the placeholder isn't shown for the current char
+        if (span.textContent === "_") {
+          span.textContent = targetChar;
+        }
       } else {
+        // Characters not yet typed
         span.classList.add("char-todo");
+        // Make sure the placeholder isn't shown for upcoming chars
+        if (span.textContent === "_") {
+          span.textContent = targetChar;
+        }
       }
     }
 
-    if (currentCursorPos >= targetText.length) clearAllKeyHighlights(false);
-    typingState.correctChars = currentCorrect;
-    typingState.incorrectChars = currentIncorrect;
+    // Update correct/incorrect counts based *only* on typed characters
+    typingState.correctChars = correctCount;
+    typingState.incorrectChars = incorrectCount;
+
+    // Highlight next key on keyboard
+    if (currentPos < targetText.length) {
+      highlightKeyOnKeyboard(targetText[currentPos]);
+    } else {
+      clearAllKeyHighlights(false); // Clear highlight if at the end
+    }
+
     updateLiveStats();
-    if (currentCursorPos === targetText.length && currentIncorrect === 0) {
+
+    // Check for completion ONLY if at the end AND no errors in the typed portion
+    if (currentPos === targetText.length && incorrectCount === 0) {
       clearAllKeyHighlights();
       finishLesson("completed");
     }
   }
 
   function updateLiveStats() {
-    if (!typingState.timerRunning && typingState.elapsedSeconds === 0) return;
+    if (typingState.isFinished) return; // Don't update stats after finishing
+
     const currentTime = Date.now();
     let currentElapsedSeconds = typingState.elapsedSeconds;
-    if (typingState.timerRunning && typingState.startTime)
+    if (typingState.timerRunning && typingState.startTime) {
       currentElapsedSeconds += (currentTime - typingState.startTime) / 1000;
+    }
+
     const minutes = currentElapsedSeconds / 60;
     let wpm = 0;
-    if (minutes > 0.01)
+    // Use correctChars counted in handleTypingInput
+    if (minutes > 0.01) {
       wpm = Math.round(
         typingState.correctChars / WPM_STANDARD_WORD_LENGTH / minutes
       );
+    }
+
     let accuracy = 100;
-    if (typingState.totalTypedChars > 0)
+    // Accuracy based on total *typed* chars so far
+    if (typingState.totalTypedChars > 0) {
       accuracy = Math.round(
         (typingState.correctChars / typingState.totalTypedChars) * 100
       );
-    wpmDisplay.textContent = wpm < 0 ? 0 : wpm;
-    accDisplay.textContent = `${Math.max(0, accuracy)}%`;
+    }
+
+    wpmDisplay.textContent = Math.max(0, wpm);
+    accDisplay.textContent = `${Math.max(0, Math.min(100, accuracy))}%`;
     errDisplay.textContent = typingState.incorrectChars;
   }
 
@@ -644,10 +694,15 @@ document.addEventListener("DOMContentLoaded", () => {
     typingState.startTime = null;
   }
   function resumeTimer() {
-    if (typingState.timerRunning || typingState.isFinished) return;
-    typingState.startTime = Date.now();
+    if (
+      typingState.timerRunning ||
+      typingState.isFinished ||
+      !typingState.startTime === null
+    )
+      return; // Resume only if paused and not finished
+    typingState.startTime = Date.now(); // Set new start time for this interval
     typingState.timerRunning = true;
-    startTimer();
+    startTimer(); // Restart the interval logic
     resetInactivityTimer();
   }
   function stopTimer() {
@@ -676,47 +731,57 @@ document.addEventListener("DOMContentLoaded", () => {
     const finalElapsedTime = stopTimer();
     typingInput.disabled = true;
     clearAllKeyHighlights();
+
+    const finalTypedValue = typingInput.value;
+    const targetText = typingState.lessonText;
+    let finalCorrectCount = 0;
+    let finalErrorCount = 0;
+    let finalTypedLength = finalTypedValue.length;
+
+    // Recalculate final correct/errors based on the actual typed input vs target
+    for (let i = 0; i < finalTypedLength; i++) {
+      if (i < targetText.length && finalTypedValue[i] === targetText[i]) {
+        finalCorrectCount++;
+      } else {
+        finalErrorCount++;
+      }
+    }
+
     const minutes = finalElapsedTime / 60;
     let finalWpm = 0;
-    const finalCorrectChars = typingState.correctChars;
     if (minutes > 0.01) {
       finalWpm = Math.round(
-        finalCorrectChars / WPM_STANDARD_WORD_LENGTH / minutes
+        finalCorrectCount / WPM_STANDARD_WORD_LENGTH / minutes
       );
       finalWpm = Math.max(0, finalWpm);
     }
+
     let finalAccuracy = 0;
-    const totalTargetChars = typingState.lessonText.length;
-    let finalErrors = 0;
-    if (totalTargetChars > 0) {
-      let correctlyTypedTargetChars = 0;
-      const finalTypedValue = typingInput.value;
-      const finalSpans = paragraphDisplay.children;
-      for (let i = 0; i < totalTargetChars; i++) {
-        if (!finalSpans[i]) continue;
-        if (
-          i < finalTypedValue.length &&
-          finalTypedValue[i] === typingState.lessonText[i]
-        )
-          correctlyTypedTargetChars++;
-        if (finalSpans[i].classList.contains("char-incorrect")) finalErrors++;
-      }
-      finalAccuracy = Math.round(
-        (correctlyTypedTargetChars / totalTargetChars) * 100
-      );
+    if (finalTypedLength > 0) {
+      finalAccuracy = Math.round((finalCorrectCount / finalTypedLength) * 100);
       finalAccuracy = Math.max(0, Math.min(100, finalAccuracy));
+    } else if (reason !== "quit") {
+      // Avoid 100% accuracy if nothing was typed unless quit
+      finalAccuracy = 0;
     }
+
+    // Determine if lesson considered completed for achievements/progress
+    // Completion generally requires reaching the end or time up with decent accuracy
+    const consideredComplete =
+      reason === "completed" ||
+      (reason === "timeup" && finalAccuracy >= 70 && finalElapsedTime > 5); // Example threshold
+
     const result = {
       wpm: finalWpm,
       accuracy: finalAccuracy,
-      errors: finalErrors,
+      errors: finalErrorCount,
       timeSeconds: Math.round(finalElapsedTime),
       stars: calculateStars(finalWpm, finalAccuracy, reason),
       lessonId: currentLesson.id,
-      completed:
-        reason === "completed" || (reason === "timeup" && finalAccuracy > 50),
+      completed: consideredComplete,
       timeLimit: typingState.timeLimit,
     };
+
     updateUserData(result);
     displayResults(result, reason);
     const newlyUnlocked = checkAchievements(result);
@@ -771,7 +836,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (currentLevelIndex + 1 < paragraphsData.levels.length) {
       const nextLevel = paragraphsData.levels[currentLevelIndex + 1];
-      if (nextLevel.lessons.length > 0) {
+      if (nextLevel.lessons && nextLevel.lessons.length > 0) {
         const nextLessonData = nextLevel.lessons[0];
         return { ...nextLessonData, levelId: nextLevel.id };
       }
@@ -920,6 +985,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentBest = userData.completedLessons[lessonId];
     let isNewBest = false;
     let starsGained = 0;
+    const lastTime = result.timeLimit ?? currentBest?.lastTimeLimit ?? 5;
     if (
       !currentBest ||
       result.wpm > currentBest.wpm ||
@@ -928,27 +994,23 @@ document.addEventListener("DOMContentLoaded", () => {
       const oldStars = currentBest ? currentBest.stars : 0;
       starsGained = result.stars - oldStars;
       userData.completedLessons[lessonId] = {
-        ...currentBest,
-        ...{
-          wpm: result.wpm,
-          accuracy: result.accuracy,
-          stars: result.stars,
-          lastTimeLimit: result.timeLimit ?? currentBest?.lastTimeLimit ?? 5,
-        },
+        wpm: result.wpm,
+        accuracy: result.accuracy,
+        stars: result.stars,
+        lastTimeLimit: lastTime,
       };
       isNewBest = true;
     } else if (!currentBest && result.stars >= 0) {
       starsGained = result.stars;
       userData.completedLessons[lessonId] = {
-        ...currentBest,
-        ...{
-          wpm: result.wpm,
-          accuracy: result.accuracy,
-          stars: result.stars,
-          lastTimeLimit: result.timeLimit ?? 5,
-        },
+        wpm: result.wpm,
+        accuracy: result.accuracy,
+        stars: result.stars,
+        lastTimeLimit: lastTime,
       };
       isNewBest = true;
+    } else if (currentBest) {
+      currentBest.lastTimeLimit = lastTime;
     }
     if (isNewBest) {
       userData.totalStars += starsGained;
@@ -956,23 +1018,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   function checkAchievements(latestResult) {
-    if (!achievementsData) return [];
+    if (!achievementsData || !latestResult) return [];
     const newlyUnlocked = [];
+    const reasonableCompletion =
+      latestResult.completed && latestResult.timeSeconds > 5;
     achievementsData.forEach((ach) => {
       if (userData.unlockedAchievements.includes(ach.id)) return;
       let unlocked = false;
       const criteria = ach.criteria;
-      const minStars = 2;
-      const reasonableCompletion =
-        latestResult.completed &&
-        latestResult.timeSeconds > 5 &&
-        latestResult.stars >= minStars;
       switch (criteria.type) {
         case "complete_lesson":
           unlocked =
             latestResult.lessonId === criteria.lessonId &&
-            latestResult.completed &&
-            latestResult.stars >= minStars;
+            latestResult.completed;
           break;
         case "collect_stars":
           unlocked = userData.totalStars >= criteria.count;
@@ -1007,23 +1065,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function handleKeyDown(event) {
     if (document.activeElement === typingInput) {
-      if (["Tab", "/", "'", "[", "]", "\\", "`"].includes(event.key))
+      // Only prevent default for Tab, which interferes with input focus
+      if (event.key === "Tab") {
         event.preventDefault();
+      }
     }
-    if (
-      views.typing.classList.contains("hidden") ||
-      !views.typing.classList.contains("active-view")
-    )
-      return;
+    if (!views.typing.classList.contains("active-view")) return;
     highlightPhysicalKey(event.key, event.code, true);
     resetInactivityTimer();
   }
   function handleKeyUp(event) {
-    if (
-      views.typing.classList.contains("hidden") ||
-      !views.typing.classList.contains("active-view")
-    )
-      return;
+    if (!views.typing.classList.contains("active-view")) return;
     highlightPhysicalKey(event.key, event.code, false);
   }
   function highlightPhysicalKey(key, code, isPressed) {
@@ -1065,13 +1117,41 @@ document.addEventListener("DOMContentLoaded", () => {
       case "Backslash":
         keyIdentifier = "backslash";
         break;
+      case "Quote":
+        keyIdentifier = "'";
+        break;
+      case "Semicolon":
+        keyIdentifier = ";";
+        break;
+      case "Comma":
+        keyIdentifier = ",";
+        break;
+      case "Period":
+        keyIdentifier = ".";
+        break;
+      case "Slash":
+        keyIdentifier = "/";
+        break;
+      case "BracketLeft":
+        keyIdentifier = "[";
+        break;
+      case "BracketRight":
+        keyIdentifier = "]";
+        break;
+      case "Minus":
+        keyIdentifier = "-";
+        break;
+      case "Equal":
+        keyIdentifier = "=";
+        break;
+      case "Backquote":
+        keyIdentifier = "`";
+        break;
     }
-    if (keyIdentifier === key.toLowerCase()) {
-      switch (key) {
-        case " ":
-          keyIdentifier = "space";
-          break;
-      }
+    if (keyIdentifier === key.toLowerCase() && code.startsWith("Digit")) {
+      keyIdentifier = key;
+    } else if (keyIdentifier === key.toLowerCase() && code.startsWith("Key")) {
+      keyIdentifier = key.toLowerCase();
     }
     if (keyIdentifier === "shift-left" || keyIdentifier === "shift-right") {
       highlightElement(document.getElementById("key-shift-left"), isPressed);
@@ -1091,7 +1171,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!char) return;
     let keyChar = char.toLowerCase();
     let requiresShift =
-      char !== " " && char !== keyChar && !isSymbolShifted(char);
+      char !== " " &&
+      char.toUpperCase() === char &&
+      char.toLowerCase() !== char;
     const symbolMap = {
       "!": "1",
       "@": "2",
@@ -1117,6 +1199,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (symbolMap[char]) {
       keyChar = symbolMap[char];
       requiresShift = true;
+    } else if (char === " ") {
+      keyChar = "space";
+      requiresShift = false;
     }
     const keyElement = document.getElementById(`key-${keyChar}`);
     if (keyElement) keyElement.classList.add("key-target");
